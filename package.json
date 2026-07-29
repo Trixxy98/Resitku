@@ -1,0 +1,43 @@
+{
+  "name": "resiku",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Expense tracker with receipt OCR on AWS",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "npm run build -w @resiku/shared && npm run build -w @resiku/api",
+    "typecheck": "npm run db:generate && tsc --build --force",
+    "clean": "tsc --build --clean",
+    "dev": "npm run dev -w @resiku/api",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d postgres",
+    "db:generate": "npm run db:generate -w @resiku/api",
+    "db:migrate": "npm run db:migrate -w @resiku/api",
+    "db:seed": "npm run db:seed -w @resiku/api",
+    "db:studio": "npm run db:studio -w @resiku/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.2",
+    "eslint": "^10.8.0",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^4.1.10"
+  }
+}
