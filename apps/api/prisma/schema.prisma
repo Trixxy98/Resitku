@@ -1,0 +1,146 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionDirection {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionStatus {
+  DRAFT
+  CONFIRMED
+}
+
+enum ReceiptStatus {
+  PENDING
+  PROCESSING
+  PARSED
+  FAILED
+}
+
+model User {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  email        String   @unique
+  name         String   @db.VarChar(80)
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  categories    Category[]
+  transactions  Transaction[]
+  receipts      Receipt[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+/// Only the hash is stored, so a database leak cannot be replayed as a session.
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+/// Every category belongs to exactly one user. A starter set is copied into the
+/// account at registration rather than shared globally, so renaming "Makanan"
+/// cannot affect anybody else.
+model Category {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  name      String       @db.VarChar(40)
+  type      CategoryType
+  color     String?      @db.Char(7)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([userId, name])
+  @@index([userId, type])
+  @@map("categories")
+}
+
+model Transaction {
+  id          String               @id @default(uuid(7)) @db.Uuid
+  userId      String               @map("user_id") @db.Uuid
+  categoryId  String               @map("category_id") @db.Uuid
+  /// Copied from the category at write time. Storing it here means a later edit
+  /// to the category cannot retroactively flip historical spending.
+  direction   TransactionDirection
+  /// Integer minor units (sen). Never a float — see packages/shared/src/money.ts.
+  amountMinor Int                  @map("amount_minor")
+  currency    String               @default("MYR") @db.Char(3)
+  description String?              @db.VarChar(280)
+  occurredOn  DateTime             @map("occurred_on") @db.Date
+  status      TransactionStatus    @default(CONFIRMED)
+  deletedAt   DateTime?            @map("deleted_at")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  receipt  Receipt?
+
+  @@index([userId, occurredOn(sort: Desc)])
+  @@index([userId, categoryId, occurredOn])
+  @@index([userId, status])
+  @@map("transactions")
+}
+
+model Receipt {
+  id     String @id @default(uuid(7)) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  /// The S3 object key doubles as the idempotency key: SQS delivers at least
+  /// once, so the worker upserts on this column instead of inserting blindly.
+  s3Key  String @unique @map("s3_key")
+
+  status      ReceiptStatus @default(PENDING)
+  contentType String        @map("content_type") @db.VarChar(64)
+  sizeBytes   Int           @map("size_bytes")
+
+  parsedVendor      String?   @map("parsed_vendor") @db.VarChar(120)
+  parsedAmountMinor Int?      @map("parsed_amount_minor")
+  parsedCurrency    String?   @map("parsed_currency") @db.Char(3)
+  parsedDate        DateTime? @map("parsed_date") @db.Date
+  confidence        Float?
+
+  /// Raw Textract response, kept for debugging extraction quality.
+  rawResult    Json?     @map("raw_result")
+  errorMessage String?   @map("error_message")
+  processedAt  DateTime? @map("processed_at")
+
+  transactionId String? @unique @map("transaction_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("receipts")
+}
