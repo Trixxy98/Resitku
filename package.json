@@ -1,5 +1,5 @@
 {
-  "name": "resiku",
+  "name": "resitku",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,10 +12,10 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "build": "npm run build -w @resiku/shared && npm run build -w @resiku/api",
+    "build": "npm run build -w @resitku/shared && npm run build -w @resitku/api",
     "typecheck": "npm run db:generate && tsc --build --force",
     "clean": "tsc --build --clean",
-    "dev": "npm run dev -w @resiku/api",
+    "dev": "npm run dev -w @resitku/api",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -25,10 +25,10 @@
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d postgres",
-    "db:generate": "npm run db:generate -w @resiku/api",
-    "db:migrate": "npm run db:migrate -w @resiku/api",
-    "db:seed": "npm run db:seed -w @resiku/api",
-    "db:studio": "npm run db:studio -w @resiku/api"
+    "db:generate": "npm run db:generate -w @resitku/api",
+    "db:migrate": "npm run db:migrate -w @resitku/api",
+    "db:seed": "npm run db:seed -w @resitku/api",
+    "db:studio": "npm run db:studio -w @resitku/api"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
