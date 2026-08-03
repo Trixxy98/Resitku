@@ -15,6 +15,10 @@ const envSchema = z.object({
 
   DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
 
+  JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
+
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+
   CORS_ORIGIN: z
     .string()
     .default("")
@@ -43,3 +47,4 @@ if (!parsed.success) {
 export const env = parsed.data;
 
 export const isProduction = env.NODE_ENV === "production";
+export const isDevelopment = env.NODE_ENV === "development";
