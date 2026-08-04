@@ -19,6 +19,8 @@ const envSchema = z.object({
 
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
 
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().max(365).default(30),
+
   CORS_ORIGIN: z
     .string()
     .default("")

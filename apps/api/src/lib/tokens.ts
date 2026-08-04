@@ -1,3 +1,5 @@
+import { createHash, randomBytes } from "node:crypto";
+
 import jwt from "jsonwebtoken";
 import type { JwtPayload } from "jsonwebtoken";
 
@@ -5,6 +7,8 @@ import { env } from "../config/env.js";
 import { HttpError } from "./http-error.js";
 
 const ISSUER = "resitku";
+
+const REFRESH_TOKEN_BYTES = 32;
 
 export interface AuthContext {
   userId: string;
@@ -43,4 +47,12 @@ export function verifyAccessToken(token: string): AuthContext {
   }
 
   return { userId: payload.sub, email };
+}
+
+export function mintRefreshToken(): string {
+  return randomBytes(REFRESH_TOKEN_BYTES).toString("base64url");
+}
+
+export function hashRefreshToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
 }
