@@ -5,6 +5,7 @@ export default defineConfig({
     include: ["packages/*/src/**/*.test.ts", "apps/*/src/**/*.test.ts"],
     environment: "node",
     globalSetup: ["apps/api/src/test/global-setup.ts"],
+    fileParallelism: false,
     env: {
       // A database of its own, so a test run can truncate freely without
       // touching whatever you were poking at in development. This string must

@@ -8,7 +8,7 @@ export const createTransactionSchema = z.object({
   amount: amountSchema,
   currency: currencySchema,
   description: z.string().trim().max(280).optional(),
-  occuredOn: isoDateSchema,
+  occurredOn: isoDateSchema,
 });
 
 export const updateTransactionSchema = z
@@ -16,7 +16,7 @@ export const updateTransactionSchema = z
     categoryId: z.uuid().optional(),
     amount: amountSchema.optional(),
     description: z.string().trim().max(280).nullable().optional(),
-    occuredOn: isoDateSchema.optional(),
+    occurredOn: isoDateSchema.optional(),
     status: z.enum(TRANSACTION_STATUSES).optional(),
   })
   .refine((body) => Object.keys(body).length > 0, "At least one field must be provided");

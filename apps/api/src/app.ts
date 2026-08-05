@@ -10,7 +10,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import { httpLogger } from "./middleware/logging.js";
 import { healthRouter } from "./routes/health.js";
 import { authRouter } from "./routes/auth.js";
-
+import { transactionRouter } from "./routes/transactions.js";
 export function createApp(): Express {
   const app = express();
 
@@ -46,6 +46,7 @@ export function createApp(): Express {
   app.use(express.json({ limit: "100kb" }));
   app.use(cookieParser());
   app.use("/api/auth", authRouter);
+  app.use("/api/transactions", transactionRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
 
