@@ -28,7 +28,9 @@
     "db:generate": "npm run db:generate -w @resitku/api",
     "db:migrate": "npm run db:migrate -w @resitku/api",
     "db:seed": "npm run db:seed -w @resitku/api",
-    "db:studio": "npm run db:studio -w @resitku/api"
+    "db:studio": "npm run db:studio -w @resitku/api",
+    "storage:up": "docker compose up -d minio minio-init elasticmq",
+    "storage:down": "docker compose stop minio elasticmq"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

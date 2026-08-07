@@ -31,6 +31,19 @@ const envSchema = z.object({
         .filter((origin) => origin.length > 0),
     ),
 
+  AWS_REGION: z.string().min(1).default("us-east-1"),
+
+  S3_RECEIPTS_BUCKET: z.string().min(1),
+  S3_ENDPOINT_URL: z.url().optional(),
+
+  S3_FORCE_PATH_STYLE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+
+  SQS_RECEIPTS_QUEUE_URL: z.url(),
+  SQS_ENDPOINT_URL: z.url().optional(),
+
   SHUTDOWN_DRAIN_MS: z.coerce.number().int().min(0).default(0),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
 });
