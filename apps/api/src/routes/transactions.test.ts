@@ -389,3 +389,123 @@ describe("DELETE /api/transactions/:id", () => {
     expect(second.status).toBe(404);
   });
 });
+
+interface SummaryBody {
+  from: string;
+  to: string;
+  totals: { incomeMinor: number; expenseMinor: number; netMinor: number };
+  byCategory: {
+    categoryId: string;
+    name: string;
+    type: "INCOME" | "EXPENSE";
+    direction: "INCOME" | "EXPENSE";
+    amountMinor: number;
+  }[];
+}
+
+describe("GET /api/transactions/summary", () => {
+  it("aggregates confirmed transactions by category within the range", async () => {
+    const actor = await signUp();
+
+    await addTransaction(actor, { amount: "50.00", occurredOn: "2026-08-05" });
+    await addTransaction(actor, { amount: "20.00", occurredOn: "2026-08-10" });
+    await addTransaction(actor, {
+      categoryId: actor.incomeCategoryId,
+      amount: "100.00",
+      occurredOn: "2026-08-15",
+    });
+
+    const response = await request(app)
+      .get("/api/transactions/summary")
+      .set(as(actor))
+      .query({ from: "2026-08-01", to: "2026-08-31" });
+
+    expect(response.status).toBe(200);
+
+    const body = response.body as SummaryBody;
+    expect(body.totals).toEqual({ incomeMinor: 10_000, expenseMinor: 7_000, netMinor: 3_000 });
+
+    const expenseLine = body.byCategory.find((line) => line.categoryId === actor.expenseCategoryId);
+    expect(expenseLine?.amountMinor).toBe(7_000);
+    expect(expenseLine?.direction).toBe("EXPENSE");
+  });
+
+  it("leaves out transactions from outside the range", async () => {
+    const actor = await signUp();
+
+    await addTransaction(actor, { amount: "50.00", occurredOn: "2026-07-31" });
+    await addTransaction(actor, { amount: "20.00", occurredOn: "2026-08-05" });
+
+    const response = await request(app)
+      .get("/api/transactions/summary")
+      .set(as(actor))
+      .query({ from: "2026-08-01", to: "2026-08-31" });
+
+    expect((response.body as SummaryBody).totals.expenseMinor).toBe(2_000);
+  });
+
+  it("excludes draft transactions from the totals", async () => {
+    const actor = await signUp();
+
+    await addTransaction(actor, { amount: "50.00", occurredOn: "2026-08-05" });
+    const draft = await addTransaction(actor, { amount: "999.00", occurredOn: "2026-08-06" });
+
+    await request(app)
+      .patch(`/api/transactions/${draft.id}`)
+      .set(as(actor))
+      .send({ status: "DRAFT" });
+
+    const response = await request(app)
+      .get("/api/transactions/summary")
+      .set(as(actor))
+      .query({ from: "2026-08-01", to: "2026-08-31" });
+
+    expect((response.body as SummaryBody).totals.expenseMinor).toBe(5_000);
+  });
+
+  it("excludes a transaction that has been soft-deleted", async () => {
+    const actor = await signUp();
+
+    const transaction = await addTransaction(actor, { amount: "50.00", occurredOn: "2026-08-05" });
+    await request(app).delete(`/api/transactions/${transaction.id}`).set(as(actor));
+
+    const response = await request(app)
+      .get("/api/transactions/summary")
+      .set(as(actor))
+      .query({ from: "2026-08-01", to: "2026-08-31" });
+
+    const body = response.body as SummaryBody;
+    expect(body.totals.expenseMinor).toBe(0);
+    expect(body.byCategory).toHaveLength(0);
+  });
+
+  it("keeps one account's summary out of another's", async () => {
+    const owner = await signUp();
+    const stranger = await signUp();
+    await addTransaction(owner, { amount: "50.00", occurredOn: "2026-08-05" });
+    const response = await request(app)
+      .get("/api/transactions/summary")
+      .set(as(stranger))
+      .query({ from: "2026-08-01", to: "2026-08-31" });
+    expect((response.body as SummaryBody).totals.expenseMinor).toBe(0);
+  });
+  it("rejects a range where from comes after to", async () => {
+    const actor = await signUp();
+    const response = await request(app)
+      .get("/api/transactions/summary")
+      .set(as(actor))
+      .query({ from: "2026-08-31", to: "2026-08-01" });
+    expect(response.status).toBe(400);
+  });
+  it("does not mistake the literal path segment for a uuid", async () => {
+    const actor = await signUp();
+    const response = await request(app)
+      .get("/api/transactions/summary")
+      .set(as(actor))
+      .query({ from: "2026-08-01", to: "2026-08-31" });
+    // Kalau laluan ini terperangkap oleh GET /:id, ia pulang 400 daripada
+    // uuidSchema.parse("summary") dan bukan objek ringkasan.
+    expect(response.status).not.toBe(400);
+    expect(response.body).toHaveProperty("totals");
+  });
+});
