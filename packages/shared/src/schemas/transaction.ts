@@ -29,10 +29,12 @@ export const listTransactionsSchema = paginationSchema.extend({
   status: z.enum(TRANSACTION_STATUSES).optional(),
 });
 
-export const summaryQuerySchema = z.object({
-  from: isoDateSchema,
-  to: isoDateSchema,
-});
+export const summaryQuerySchema = z
+  .object({
+    from: isoDateSchema,
+    to: isoDateSchema,
+  })
+  .refine((query) => query.from <= query.to, "from must not be after to");
 
 export type CreateTransactionInput = z.output<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.output<typeof updateTransactionSchema>;

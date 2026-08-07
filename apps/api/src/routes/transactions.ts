@@ -1,6 +1,7 @@
 import {
   createTransactionSchema,
   listTransactionsSchema,
+  summaryQuerySchema,
   updateTransactionSchema,
   uuidSchema,
 } from "@resitku/shared";
@@ -11,6 +12,7 @@ import {
   createTransaction,
   deleteTransaction,
   getTransaction,
+  getTransactionSummary,
   listTransactions,
   updateTransaction,
 } from "../services/transaction.service.js";
@@ -36,6 +38,13 @@ transactionRouter.get("/", async (req, res) => {
   const { userId } = getAuth(req);
 
   res.json(await listTransactions(userId, listTransactionsSchema.parse(query)));
+});
+
+transactionRouter.get("/summary", async (req, res) => {
+  const query: unknown = req.query;
+  const { userId } = getAuth(req);
+
+  res.json(await getTransactionSummary(userId, summaryQuerySchema.parse(query)));
 });
 
 transactionRouter.get("/:id", async (req, res) => {

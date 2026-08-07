@@ -2,6 +2,7 @@ import type {
   CategoryType,
   CreateTransactionInput,
   ListTransactionsQuery,
+  SummaryQuery,
   TransactionDirection,
   TransactionStatus,
   UpdateTransactionInput,
@@ -226,4 +227,90 @@ export async function deleteTransaction(userId: string, id: string): Promise<voi
   if (count === 0) {
     throw HttpError.notFound("Transaction not found");
   }
+}
+
+export interface CategorySummaryLine {
+  categoryId: string;
+  name: string;
+  type: CategoryType;
+  direction: TransactionDirection;
+  amountMinor: number;
+}
+
+export interface TransactionSummary {
+  from: string;
+  to: string;
+  totals: { incomeMinor: number; expenseMinor: number; netMinor: number };
+  byCategory: CategorySummaryLine[];
+}
+
+export async function getTransactionSummary(
+  userId: string,
+  query: SummaryQuery,
+): Promise<TransactionSummary> {
+  const groups = await prisma.transaction.groupBy({
+    by: ["categoryId", "direction"],
+    where: {
+      userId,
+      deletedAt: null,
+
+      status: "CONFIRMED",
+      occurredOn: { gte: new Date(query.from), lte: new Date(query.to) },
+    },
+    _sum: { amountMinor: true },
+  });
+
+  if (groups.length === 0) {
+    return {
+      from: query.from,
+      to: query.to,
+      totals: { incomeMinor: 0, expenseMinor: 0, netMinor: 0 },
+      byCategory: [],
+    };
+  }
+
+  const categories = await prisma.category.findMany({
+    where: { id: { in: groups.map((group) => group.categoryId) }, userId },
+    select: { id: true, name: true, type: true },
+  });
+
+  const categoryById = new Map(categories.map((category) => [category.id, category]));
+
+  const byCategory = groups
+    .map((group) => {
+      const category = categoryById.get(group.categoryId);
+
+      if (category === undefined) {
+        throw new Error(`Category ${group.categoryId} referenced by a transaction is missing`);
+      }
+
+      return {
+        categoryId: group.categoryId,
+        name: category.name,
+        type: category.type,
+        direction: group.direction,
+        amountMinor: group._sum.amountMinor ?? 0,
+      };
+    })
+    .sort((a, b) => b.amountMinor - a.amountMinor);
+
+  const totals = byCategory.reduce(
+    (acc, line) => {
+      if (line.direction === "INCOME") {
+        acc.incomeMinor += line.amountMinor;
+      } else {
+        acc.expenseMinor += line.amountMinor;
+      }
+
+      return acc;
+    },
+    { incomeMinor: 0, expenseMinor: 0 },
+  );
+
+  return {
+    from: query.from,
+    to: query.to,
+    totals: { ...totals, netMinor: totals.incomeMinor - totals.expenseMinor },
+    byCategory,
+  };
 }
