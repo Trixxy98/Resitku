@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import { httpLogger } from "./middleware/logging.js";
 import { healthRouter } from "./routes/health.js";
 import { categoryRouter } from "./routes/categories.js";
+import { receiptRouter } from "./routes/receipts.js";
 import { authRouter } from "./routes/auth.js";
 import { transactionRouter } from "./routes/transactions.js";
 export function createApp(): Express {
@@ -49,6 +50,7 @@ export function createApp(): Express {
   app.use("/api/auth", authRouter);
   app.use("/api/transactions", transactionRouter);
   app.use("/api/categories", categoryRouter);
+  app.use("/api/receipts", receiptRouter);
   app.use(notFoundHandler);
   app.use(errorHandler);
 

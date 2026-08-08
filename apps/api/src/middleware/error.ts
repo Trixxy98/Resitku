@@ -25,6 +25,15 @@ function toHttpError(error: unknown): HttpError {
     );
   }
 
+  // Bukan `instanceof MulterError`: multer ialah pakej CommonJS, dan dalam
+  // gabungan ESM/CJS projek ini, kelas yang diimport secara statik di sini
+  // boleh menjadi rujukan berbeza daripada kelas yang multer gunakan secara
+  // dalaman semasa larian sebenar, menyebabkan instanceof gagal secara senyap.
+  // Menyemak `name` mengelak isu identiti kelas itu sepenuhnya.
+  if (error instanceof Error && error.name === "MulterError" && "code" in error) {
+    return new HttpError(400, "BAD_REQUEST", error.message);
+  }
+
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     switch (error.code) {
       case "P2002":
