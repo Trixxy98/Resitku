@@ -3,6 +3,10 @@ import * as z from "zod";
 export const RECEIPT_CONTENT_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export type ReceiptContentType = (typeof RECEIPT_CONTENT_TYPES)[number];
 
+export function isReceiptContentType(value: string): value is ReceiptContentType {
+  return (RECEIPT_CONTENT_TYPES as readonly string[]).includes(value);
+}
+
 export const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 
 export const createReceiptUploadSchema = z.object({
