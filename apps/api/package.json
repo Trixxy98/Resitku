@@ -9,6 +9,8 @@
     "clean": "tsc --build tsconfig.build.json --clean",
     "dev": "node --env-file=../../.env --import tsx --watch src/server.ts",
     "start": "node dist/server.js",
+    "worker:dev": "node --env-file=../../.env --import tsx --watch src/worker.ts",
+    "worker": "node dist/worker.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
@@ -32,6 +34,7 @@
     "zod": "^4.4.3",
     "@aws-sdk/client-s3": "^3.1105.0",
     "@aws-sdk/client-sqs": "^3.1105.0",
+    "@aws-sdk/client-textract": "^3.1106.0",
     "multer": "^2.2.0"
   },
   "devDependencies": {

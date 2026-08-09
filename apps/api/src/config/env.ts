@@ -44,6 +44,10 @@ const envSchema = z.object({
   SQS_RECEIPTS_QUEUE_URL: z.url(),
   SQS_ENDPOINT_URL: z.url().optional(),
 
+  // "stub" gives deterministic fake results locally/in tests with no AWS
+  // Textract calls at all; the worker's own docs explain when to flip this.
+  OCR_PROVIDER: z.enum(["stub", "textract"]).default("stub"),
+
   SHUTDOWN_DRAIN_MS: z.coerce.number().int().min(0).default(0),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
 });
