@@ -25,18 +25,46 @@ function parseAmountMinor(text: string | undefined): number | null {
   return Number.isFinite(value) ? Math.round(value * 100) : null;
 }
 
+// Textract memulangkan tarikh sebagai teks bebas seturut apa yang tertera
+// pada resit (format berbeza-beza ikut kedai). new Date(text) yang lama
+// menghurainya secara kabur mengikut tafsiran locale JavaScript sendiri —
+// "01/02/2026" ditafsir sebagai Jan 2 oleh new Date(), bukan 1 Februari
+// seperti kebiasaan resit Malaysia (DD/MM/YYYY) — silap tanpa sebarang
+// amaran. Senarai di bawah hanya menerima bentuk yang kita nyatakan secara
+// eksplisit; apa-apa lain pulang null dengan yakin daripada meneka tarikh
+// yang salah.
+const DATE_PATTERNS: { regex: RegExp; toIso: (match: RegExpMatchArray) => string }[] = [
+  // 2026-01-15
+  { regex: /^(\d{4})-(\d{2})-(\d{2})$/, toIso: (m) => `${m[1]}-${m[2]}-${m[3]}` },
+  // 15/01/2026 atau 15-01-2026 — hari dahulu, seperti kebiasaan resit Malaysia.
+  { regex: /^(\d{2})[/-](\d{2})[/-](\d{4})$/, toIso: (m) => `${m[3]}-${m[2]}-${m[1]}` },
+];
+
 function parseOccurredOn(text: string | undefined): string | null {
   if (text === undefined) {
     return null;
   }
 
-  // Textract memulangkan tarikh sebagai teks bebas seturut apa yang tertera
-  // pada resit (format berbeza-beza ikut kedai), jadi ini sekadar percubaan
-  // terbaik melalui penghurai tarikh JavaScript, bukan penghuraian format
-  // eksplisit. Tarikh yang tidak dikenali pulang null dengan yakin, bukan
-  // meneka nilai yang salah.
-  const parsed = new Date(text);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString().slice(0, 10);
+  const trimmed = text.trim();
+
+  for (const pattern of DATE_PATTERNS) {
+    const match = pattern.regex.exec(trimmed);
+
+    if (match === null) {
+      continue;
+    }
+
+    const iso = pattern.toIso(match);
+    const parsed = new Date(iso);
+
+    // Regex sudah pastikan bentuk yang betul; semakan pusingan-ganti ini
+    // menangkap nilai yang mustahil (cth. bulan 13, 30 Februari) yang bentuk
+    // sahaja tidak dapat tolak — new Date menormalkannya senyap-senyap
+    // kepada tarikh lain melainkan kita bandingkan semula.
+    return Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso ? null : iso;
+  }
+
+  return null;
 }
 
 export const textractOcrProvider: OcrProvider = {

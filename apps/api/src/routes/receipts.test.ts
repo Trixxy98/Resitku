@@ -152,6 +152,20 @@ describe("POST /api/receipts", () => {
     expect(response.status).toBe(400);
   });
 
+  it("rejects bytes that are not actually an image even when declared as one", async () => {
+    const actor = await signUp();
+
+    const response = await request(app)
+      .post("/api/receipts")
+      .set(as(actor))
+      .attach("file", Buffer.from("bukan imej langsung, cuma teks biasa"), {
+        filename: "resit.png",
+        contentType: "image/png",
+      });
+
+    expect(response.status).toBe(400);
+  });
+
   it('rejects a request carrying no file under the "file" field', async () => {
     const actor = await signUp();
 

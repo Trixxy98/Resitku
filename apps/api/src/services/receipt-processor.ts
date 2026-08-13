@@ -29,17 +29,25 @@ export async function processReceiptMessage(receiptId: string): Promise<void> {
     return;
   }
 
-  if (receipt.status !== "PENDING") {
-    // Penghantaran sekurang-kurangnya sekali SQS bermakna mesej yang sama
-    // boleh sampai dua kali. Apa-apa selain PENDING sudah/sedang ditangani.
-    logger.info(
-      { receiptId, status: receipt.status },
-      "Skipping receipt that is no longer pending",
-    );
+  // Klaim baris ini secara atomik dengan syarat WHERE pada status semasa
+  // tulisan, bukan menyemak status secara berasingan (baca) lalu menulis
+  // PROCESSING selepas itu. Penghantaran sekurang-kurangnya sekali SQS
+  // bermakna mesej yang sama boleh sampai dua kali serentak (Promise.all
+  // dalam worker.ts memproses satu tempoh tinjauan bersama-sama); semakan
+  // baca-dahulu yang lama membuka tingkap perlumbaan di mana kedua-dua
+  // panggilan membaca PENDING sebelum sesiapa menulis, dan kedua-duanya
+  // meneruskan pemprosesan fail yang sama dua kali. WHERE Postgres pada
+  // UPDATE dinilai semula pada baris terkini semasa mengambil kunci baris,
+  // jadi hanya satu panggilan serentak akan mendapat count === 1.
+  const claim = await prisma.receipt.updateMany({
+    where: { id: receiptId, status: "PENDING" },
+    data: { status: "PROCESSING" },
+  });
+
+  if (claim.count === 0) {
+    logger.info({ receiptId }, "Skipping receipt that is no longer pending");
     return;
   }
-
-  await prisma.receipt.update({ where: { id: receiptId }, data: { status: "PROCESSING" } });
 
   try {
     if (!isReceiptContentType(receipt.contentType)) {
@@ -78,13 +86,26 @@ export async function processReceiptMessage(receiptId: string): Promise<void> {
   } catch (error) {
     logger.error({ err: error, receiptId }, "Receipt processing failed");
 
-    await prisma.receipt.update({
-      where: { id: receiptId },
-      data: {
-        status: "FAILED",
-        errorMessage: error instanceof Error ? error.message : "Unknown OCR failure",
-        processedAt: new Date(),
-      },
-    });
+    try {
+      await prisma.receipt.update({
+        where: { id: receiptId },
+        data: {
+          status: "FAILED",
+          errorMessage: error instanceof Error ? error.message : "Unknown OCR failure",
+          processedAt: new Date(),
+        },
+      });
+    } catch (updateError) {
+      // Kontrak fungsi ini (lihat dokblok di atas) adalah ia tidak pernah
+      // melontar semula selepas mencapai PROCESSING. Kegagalan menulis
+      // status FAILED bermakna resit ini kekal tersekat pada PROCESSING
+      // (tiada mekanisme cuba semula automatik untuk kes ini lagi), tetapi
+      // melontar semula di sini akan melanggar kontrak itu dan menyebabkan
+      // worker.ts melog seolah-olah pemprosesan tidak pernah bermula.
+      logger.error(
+        { err: updateError, receiptId },
+        "Failed to record FAILED status after processing error; receipt is stuck on PROCESSING",
+      );
+    }
   }
 }

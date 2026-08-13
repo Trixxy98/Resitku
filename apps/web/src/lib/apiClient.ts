@@ -1,4 +1,4 @@
-import { getAccessToken, setAccessToken } from "./authToken";
+import { getAccessToken, getSessionGeneration, setAccessToken } from "./authToken";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -36,6 +36,14 @@ let pendingRefresh: Promise<string | null> | null = null;
 /// menghantar permintaan itu.
 async function refreshAccessToken(): Promise<string | null> {
   pendingRefresh ??= (async () => {
+    // Ditangkap sekali sahaja di sini, pada permulaan percubaan refresh yang
+    // sebenar — bukan bagi setiap pemanggil yang berkongsi promise ini.
+    // Sesuatu boleh menukar sesi (logout, login semula) sementara fetch di
+    // bawah masih menunggu; membandingkannya selepas itu memastikan hasil
+    // yang lapuk tidak menulis ganti keadaan yang lebih baharu.
+    const generationAtStart = getSessionGeneration();
+    const stillCurrent = () => getSessionGeneration() === generationAtStart;
+
     try {
       const response = await fetch(`${API_BASE}/api/auth/refresh`, {
         method: "POST",
@@ -43,15 +51,24 @@ async function refreshAccessToken(): Promise<string | null> {
       });
 
       if (!response.ok) {
-        setAccessToken(null);
+        if (stillCurrent()) {
+          setAccessToken(null);
+        }
         return null;
       }
 
       const body = (await response.json()) as { accessToken: string };
+
+      if (!stillCurrent()) {
+        return null;
+      }
+
       setAccessToken(body.accessToken);
       return body.accessToken;
     } catch {
-      setAccessToken(null);
+      if (stillCurrent()) {
+        setAccessToken(null);
+      }
       return null;
     }
   })().finally(() => {

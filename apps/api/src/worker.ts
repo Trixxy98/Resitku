@@ -65,7 +65,6 @@ export async function handleMessage(message: Message): Promise<void> {
 
   try {
     await processReceiptMessage(payload.receiptId);
-    await deleteMessage(message);
   } catch (error) {
     // Sengaja tidak dipadam: processReceiptMessage hanya melontar semula
     // apabila ia tidak sempat mula memproses (contohnya Postgres tidak
@@ -76,6 +75,22 @@ export async function handleMessage(message: Message): Promise<void> {
     logger.warn(
       { err: error, receiptId: payload.receiptId },
       "Could not start processing this receipt; leaving it on the queue for automatic retry",
+    );
+    return;
+  }
+
+  try {
+    await deleteMessage(message);
+  } catch (error) {
+    // Berasingan daripada catch di atas: pemprosesan itu sendiri sudah
+    // berjaya (status PARSED/FAILED sudah direkodkan) — cuma pemadaman
+    // mesej yang gagal. Melaporkannya dengan mesej "tidak sempat mula
+    // memproses" yang sama akan mengelirukan siasatan kelak. Penghantaran
+    // semula selamat: semakan status idempoten dalam processReceiptMessage
+    // akan melangkaunya sebaik ia tiba semula.
+    logger.warn(
+      { err: error, receiptId: payload.receiptId },
+      "Receipt was processed but the queue message could not be deleted; it will be redelivered and skipped as already-handled",
     );
   }
 }
