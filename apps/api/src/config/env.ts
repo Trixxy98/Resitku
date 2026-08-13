@@ -1,56 +1,67 @@
 import * as z from "zod";
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
-  LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+const envSchema = z
+  .object({
+    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+    LOG_LEVEL: z
+      .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+      .default("info"),
 
-  DATABASE_URL: z
-    .string()
-    .min(1)
-    .refine(
-      (value) => /^postgres(ql)?:\/\//.test(value),
-      "DATABASE_URL must start with postgres:// or postgresql://",
-    ),
+    DATABASE_URL: z
+      .string()
+      .min(1)
+      .refine(
+        (value) => /^postgres(ql)?:\/\//.test(value),
+        "DATABASE_URL must start with postgres:// or postgresql://",
+      ),
 
-  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
+    DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
 
-  JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
+    JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
 
-  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+    ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
 
-  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().max(365).default(30),
+    REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().max(365).default(30),
 
-  CORS_ORIGIN: z
-    .string()
-    .default("")
-    .transform((value) =>
-      value
-        .split(",")
-        .map((origin) => origin.trim())
-        .filter((origin) => origin.length > 0),
-    ),
+    CORS_ORIGIN: z
+      .string()
+      .default("")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((origin) => origin.trim())
+          .filter((origin) => origin.length > 0),
+      ),
 
-  AWS_REGION: z.string().min(1).default("us-east-1"),
+    AWS_REGION: z.string().min(1).default("us-east-1"),
 
-  S3_RECEIPTS_BUCKET: z.string().min(1),
-  S3_ENDPOINT_URL: z.url().optional(),
+    S3_RECEIPTS_BUCKET: z.string().min(1),
+    S3_ENDPOINT_URL: z.url().optional(),
 
-  S3_FORCE_PATH_STYLE: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
+    S3_FORCE_PATH_STYLE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
 
-  SQS_RECEIPTS_QUEUE_URL: z.url(),
-  SQS_ENDPOINT_URL: z.url().optional(),
+    SQS_RECEIPTS_QUEUE_URL: z.url(),
+    SQS_ENDPOINT_URL: z.url().optional(),
 
-  // "stub" gives deterministic fake results locally/in tests with no AWS
-  // Textract calls at all; the worker's own docs explain when to flip this.
-  OCR_PROVIDER: z.enum(["stub", "textract"]).default("stub"),
+    // "stub" gives deterministic fake results locally/in tests with no AWS
+    // Textract calls at all; the worker's own docs explain when to flip this.
+    OCR_PROVIDER: z.enum(["stub", "textract"]).default("stub"),
 
-  SHUTDOWN_DRAIN_MS: z.coerce.number().int().min(0).default(0),
-  SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
-});
+    SHUTDOWN_DRAIN_MS: z.coerce.number().int().min(0).default(0),
+    SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().positive().default(15_000),
+  })
+  .refine((value) => value.NODE_ENV !== "production" || value.OCR_PROVIDER === "textract", {
+    // "stub" mengembalikan data OCR palsu — selamat untuk pembangunan/ujian,
+    // tetapi produksi yang secara senyap jatuh balik kepada nilai lalai ini
+    // (contohnya OCR_PROVIDER tertinggal daripada konfigurasi persekitaran)
+    // akan menyimpan transaksi berdasarkan data karut tanpa sesiapa perasan.
+    message: 'OCR_PROVIDER must be explicitly set to "textract" when NODE_ENV=production',
+    path: ["OCR_PROVIDER"],
+  });
 
 const parsed = envSchema.safeParse(process.env);
 

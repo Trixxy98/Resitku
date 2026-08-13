@@ -200,7 +200,25 @@ export async function confirmReceipt(
       select: TRANSACTION_SELECT,
     });
 
-    await tx.receipt.update({ where: { id: receiptId }, data: { transactionId: transaction.id } });
+    // Dua permintaan confirm serentak bagi resit yang SAMA kedua-duanya boleh
+    // lulus semakan "transactionId !== null" di atas (belum ada yang commit
+    // lagi), kedua-dua cipta baris transactions sendiri, lalu cuba menulis
+    // ganti transactionId resit itu — yang commit dahulu "menang" dan yang
+    // kedua menulis ganti secara senyap, meninggalkan transaksi pertama
+    // sebagai yatim yang tidak dapat dicapai (dua caj berganda, satu tidak
+    // kelihatan). WHERE Postgres pada UPDATE menyemak semula baris terkini
+    // semasa mengambil kunci baris (READ COMMITTED), jadi hanya satu daripada
+    // dua panggilan serentak akan mendapat count === 1; yang satu lagi
+    // melontar konflik dan prisma.$transaction menggulung balik transaksi
+    // yang baru dicipta itu sekali.
+    const linked = await tx.receipt.updateMany({
+      where: { id: receiptId, transactionId: null },
+      data: { transactionId: transaction.id },
+    });
+
+    if (linked.count === 0) {
+      throw HttpError.conflict("Receipt is already linked to a transaction");
+    }
 
     return toTransactionView(transaction);
   });

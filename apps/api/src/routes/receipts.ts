@@ -8,6 +8,7 @@ import { Router } from "express";
 import multer from "multer";
 
 import { HttpError } from "../lib/http-error.js";
+import { sniffImageContentType } from "../lib/image-signature.js";
 import { getAuth, requireAuth } from "../middleware/require-auth.js";
 import {
   confirmReceipt,
@@ -40,16 +41,21 @@ receiptRouter.post("/", upload.single("file"), async (req, res) => {
     throw HttpError.badRequest('No file was uploaded under the "file" field');
   }
 
-  // fileFilter sudah menolak jenis kandungan yang tidak dibenarkan; semakan
-  // ini semata-mata menyempitkan jenis untuk TypeScript, bukan pertahanan
-  // sebenar terhadap input yang tidak sah.
-  if (!isReceiptContentType(req.file.mimetype)) {
-    throw HttpError.badRequest(`Unsupported file type: ${req.file.mimetype}`);
+  // fileFilter di atas hanya menyemak MIME type YANG DIDAKWA oleh permintaan
+  // — tidak ada apa yang menghalang klien daripada melabel bait sembarangan
+  // sebagai "image/png". Mengesan tandatangan bait sebenar sebelum menyimpan
+  // ke S3 atau menghantarnya ke saluran paip OCR menutup lubang itu; sniffed
+  // menggantikan req.file.mimetype (yang hanya menyempitkan jenis untuk
+  // TypeScript, bukan pertahanan input) sebagai sumber kebenaran sebenar.
+  const sniffedContentType = sniffImageContentType(req.file.buffer);
+
+  if (sniffedContentType === null || sniffedContentType !== req.file.mimetype) {
+    throw HttpError.badRequest("File content does not match a supported image format");
   }
 
   const receipt = await createReceipt(userId, {
     buffer: req.file.buffer,
-    mimetype: req.file.mimetype,
+    mimetype: sniffedContentType,
     size: req.file.size,
   });
 
