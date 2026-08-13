@@ -40,9 +40,15 @@ function fromFreshClient(): Record<string, string> {
   return { "x-forwarded-for": `10.3.0.${String(clientCounter % 250)}` };
 }
 
+interface Actor {
+  token: string;
+  userId: string;
+  expenseCategoryId: string;
+}
+
 let actorCounter = 0;
 
-async function signUp(): Promise<{ token: string; userId: string }> {
+async function signUp(): Promise<Actor> {
   actorCounter += 1;
 
   const response = await request(app)
@@ -57,7 +63,15 @@ async function signUp(): Promise<{ token: string; userId: string }> {
   expect(response.status).toBe(201);
 
   const body = response.body as { accessToken: string; user: { id: string } };
-  return { token: body.accessToken, userId: body.user.id };
+
+  // Pendaftaran menyalin lapan kategori permulaan ke akaun baharu — lihat
+  // routes/transactions.test.ts untuk nota yang sama.
+  const expense = await prisma.category.findFirstOrThrow({
+    where: { userId: body.user.id, type: "EXPENSE" },
+    select: { id: true },
+  });
+
+  return { token: body.accessToken, userId: body.user.id, expenseCategoryId: expense.id };
 }
 
 function as(actor: { token: string }): Record<string, string> {
@@ -147,6 +161,158 @@ describe("POST /api/receipts", () => {
   });
 });
 
+describe("POST /api/receipts/:id/confirm", () => {
+  async function markParsed(
+    receiptId: string,
+    overrides: Partial<{
+      vendor: string | null;
+      amountMinor: number | null;
+      currency: string | null;
+      date: string | null;
+      status: "PARSED" | "FAILED";
+    }> = {},
+  ): Promise<void> {
+    const {
+      vendor = "Kedai Runcit Pak Cik",
+      amountMinor = 1250,
+      currency = "MYR",
+      date = "2026-01-15",
+      status = "PARSED",
+    } = overrides;
+
+    await prisma.receipt.update({
+      where: { id: receiptId },
+      data: {
+        status,
+        parsedVendor: vendor,
+        parsedAmountMinor: amountMinor,
+        parsedCurrency: currency,
+        parsedDate: date === null ? null : new Date(date),
+      },
+    });
+  }
+
+  it("creates a transaction from the OCR result and links it back to the receipt", async () => {
+    const actor = await signUp();
+    const receipt = await uploadReceipt(actor);
+    await markParsed(receipt.id);
+
+    const response = await request(app)
+      .post(`/api/receipts/${receipt.id}/confirm`)
+      .set(as(actor))
+      .send({ categoryId: actor.expenseCategoryId });
+
+    expect(response.status).toBe(201);
+
+    const body = response.body as {
+      transaction: {
+        id: string;
+        amountMinor: number;
+        currency: string;
+        description: string | null;
+        occurredOn: string;
+      };
+    };
+    expect(body.transaction.amountMinor).toBe(1250);
+    expect(body.transaction.currency).toBe("MYR");
+    expect(body.transaction.description).toBe("Kedai Runcit Pak Cik");
+    expect(body.transaction.occurredOn).toBe("2026-01-15");
+
+    const updatedReceipt = await prisma.receipt.findUniqueOrThrow({ where: { id: receipt.id } });
+    expect(updatedReceipt.transactionId).toBe(body.transaction.id);
+  });
+
+  it("lets the caller override every OCR-derived field", async () => {
+    const actor = await signUp();
+    const receipt = await uploadReceipt(actor);
+    await markParsed(receipt.id);
+
+    const response = await request(app)
+      .post(`/api/receipts/${receipt.id}/confirm`)
+      .set(as(actor))
+      .send({
+        categoryId: actor.expenseCategoryId,
+        amount: "99.90",
+        currency: "USD",
+        description: "Dinner betul-betul",
+        occurredOn: "2026-02-01",
+      });
+
+    expect(response.status).toBe(201);
+
+    const body = response.body as {
+      transaction: {
+        amountMinor: number;
+        currency: string;
+        description: string | null;
+        occurredOn: string;
+      };
+    };
+    expect(body.transaction.amountMinor).toBe(9990);
+    expect(body.transaction.currency).toBe("USD");
+    expect(body.transaction.description).toBe("Dinner betul-betul");
+    expect(body.transaction.occurredOn).toBe("2026-02-01");
+  });
+
+  it("rejects confirming a receipt that is still pending", async () => {
+    const actor = await signUp();
+    const receipt = await uploadReceipt(actor);
+
+    const response = await request(app)
+      .post(`/api/receipts/${receipt.id}/confirm`)
+      .set(as(actor))
+      .send({ categoryId: actor.expenseCategoryId });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("rejects confirming the same receipt a second time", async () => {
+    const actor = await signUp();
+    const receipt = await uploadReceipt(actor);
+    await markParsed(receipt.id);
+
+    const first = await request(app)
+      .post(`/api/receipts/${receipt.id}/confirm`)
+      .set(as(actor))
+      .send({ categoryId: actor.expenseCategoryId });
+
+    expect(first.status).toBe(201);
+
+    const second = await request(app)
+      .post(`/api/receipts/${receipt.id}/confirm`)
+      .set(as(actor))
+      .send({ categoryId: actor.expenseCategoryId });
+
+    expect(second.status).toBe(409);
+  });
+
+  it("requires a manual amount and date when OCR failed to detect them", async () => {
+    const actor = await signUp();
+    const receipt = await uploadReceipt(actor);
+    await markParsed(receipt.id, {
+      status: "FAILED",
+      vendor: null,
+      amountMinor: null,
+      currency: null,
+      date: null,
+    });
+
+    const withoutOverrides = await request(app)
+      .post(`/api/receipts/${receipt.id}/confirm`)
+      .set(as(actor))
+      .send({ categoryId: actor.expenseCategoryId });
+
+    expect(withoutOverrides.status).toBe(400);
+
+    const withOverrides = await request(app)
+      .post(`/api/receipts/${receipt.id}/confirm`)
+      .set(as(actor))
+      .send({ categoryId: actor.expenseCategoryId, amount: "10.00", occurredOn: "2026-03-01" });
+
+    expect(withOverrides.status).toBe(201);
+  });
+});
+
 describe("ownership", () => {
   it("hides another account's receipt behind a 404", async () => {
     const owner = await signUp();
@@ -172,5 +338,18 @@ describe("ownership", () => {
     const response = await request(app).get("/api/receipts").set(fromFreshClient());
 
     expect(response.status).toBe(401);
+  });
+
+  it("hides another account's receipt behind a 404 when confirming", async () => {
+    const owner = await signUp();
+    const stranger = await signUp();
+    const receipt = await uploadReceipt(owner);
+
+    const response = await request(app)
+      .post(`/api/receipts/${receipt.id}/confirm`)
+      .set(as(stranger))
+      .send({ categoryId: stranger.expenseCategoryId });
+
+    expect(response.status).toBe(404);
   });
 });

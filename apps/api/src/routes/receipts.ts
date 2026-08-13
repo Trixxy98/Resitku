@@ -1,10 +1,20 @@
-import { isReceiptContentType, MAX_RECEIPT_BYTES, uuidSchema } from "@resitku/shared";
+import {
+  confirmReceiptSchema,
+  isReceiptContentType,
+  MAX_RECEIPT_BYTES,
+  uuidSchema,
+} from "@resitku/shared";
 import { Router } from "express";
 import multer from "multer";
 
 import { HttpError } from "../lib/http-error.js";
 import { getAuth, requireAuth } from "../middleware/require-auth.js";
-import { createReceipt, getReceipt, listReceipts } from "../services/receipt.service.js";
+import {
+  confirmReceipt,
+  createReceipt,
+  getReceipt,
+  listReceipts,
+} from "../services/receipt.service.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -56,4 +66,17 @@ receiptRouter.get("/:id", async (req, res) => {
   const { userId } = getAuth(req);
 
   res.json({ receipt: await getReceipt(userId, uuidSchema.parse(req.params.id)) });
+});
+
+receiptRouter.post("/:id/confirm", async (req, res) => {
+  const body: unknown = req.body;
+  const { userId } = getAuth(req);
+
+  const transaction = await confirmReceipt(
+    userId,
+    uuidSchema.parse(req.params.id),
+    confirmReceiptSchema.parse(body),
+  );
+
+  res.status(201).json({ transaction });
 });
