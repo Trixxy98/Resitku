@@ -33,7 +33,7 @@ export interface TransactionPage {
   nextCursor: string | null;
 }
 
-const TRANSACTION_SELECT = {
+export const TRANSACTION_SELECT = {
   id: true,
   direction: true,
   amountMinor: true,
@@ -56,7 +56,9 @@ function toDateString(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
 
-function toView(row: TransactionRow): TransactionView {
+/// Dieksport supaya receipt.service.ts boleh membentuk respons yang sama
+/// bentuknya bila resit disahkan terus menjadi transaksi.
+export function toTransactionView(row: TransactionRow): TransactionView {
   return {
     ...row,
     occurredOn: toDateString(row.occurredOn),
@@ -68,11 +70,17 @@ function toView(row: TransactionRow): TransactionView {
 /// Kategori yang dirujuk mesti milik pemanggil. Tanpa semakan ini, sesiapa yang
 /// meneka satu uuid boleh memfailkan perbelanjaannya di bawah kategori orang
 /// lain, dan ringkasan mangsa nanti mengandungi baris yang bukan miliknya.
-async function requireOwnedCategory(
+///
+/// Dieksport dan menerima parameter client supaya receipt.service.ts boleh
+/// memanggilnya dari dalam prisma.$transaction miliknya sendiri — semakan
+/// pemilikan dan penciptaan transaksi mesti kekal atomik bersama kemas kini
+/// receipts.transaction_id.
+export async function requireOwnedCategory(
   userId: string,
   categoryId: string,
+  client: Prisma.TransactionClient = prisma,
 ): Promise<{ id: string; type: CategoryType }> {
-  const category = await prisma.category.findFirst({
+  const category = await client.category.findFirst({
     where: { id: categoryId, userId },
     select: { id: true, type: true },
   });
@@ -106,7 +114,7 @@ export async function createTransaction(
     select: TRANSACTION_SELECT,
   });
 
-  return toView(row);
+  return toTransactionView(row);
 }
 
 export async function getTransaction(userId: string, id: string): Promise<TransactionView> {
@@ -122,7 +130,7 @@ export async function getTransaction(userId: string, id: string): Promise<Transa
     throw HttpError.notFound("Transaction not found");
   }
 
-  return toView(row);
+  return toTransactionView(row);
 }
 
 export async function listTransactions(
@@ -158,7 +166,7 @@ export async function listTransactions(
     ...(query.cursor === undefined ? {} : { cursor: { id: query.cursor }, skip: 1 }),
   });
 
-  const items = rows.slice(0, query.limit).map(toView);
+  const items = rows.slice(0, query.limit).map(toTransactionView);
 
   return {
     items,
