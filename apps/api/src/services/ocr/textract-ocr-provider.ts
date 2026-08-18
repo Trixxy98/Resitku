@@ -19,7 +19,14 @@ function parseAmountMinor(text: string | undefined): number | null {
     return null;
   }
 
-  const cleaned = text.replace(/[^0-9.]/g, "");
+  // Jangan buang koma: "RM 1.234,50" mesti ditolak, bukan jadi 1.23450.
+  // Hanya satu titik perpuluhan — "1.234.50" juga ditolak.
+  const cleaned = text.replace(/[^\d.,]/g, "");
+
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) {
+    return null;
+  }
+
   const value = Number.parseFloat(cleaned);
 
   return Number.isFinite(value) ? Math.round(value * 100) : null;

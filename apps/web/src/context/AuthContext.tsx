@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { apiRequest } from "../lib/apiClient";
-import { setAccessToken, subscribeToAccessToken } from "../lib/authToken";
+import { getSessionGeneration, setAccessToken, subscribeToAccessToken } from "../lib/authToken";
 
 interface CurrentUser {
   id: string;
@@ -54,19 +54,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // dimuatkan, cuba tukarkannya kepada sesi baharu dahulu sebelum
     // mengisytiharkan pengguna "belum log masuk".
     void (async () => {
+      const generationAtStart = getSessionGeneration();
+      const stillCurrent = () => !cancelled && getSessionGeneration() === generationAtStart;
+
       try {
         const response = await apiRequest<AuthResponse>("/api/auth/refresh", {
           method: "POST",
           skipAuth: true,
         });
 
-        if (cancelled) return;
-
+        if (!stillCurrent()) {
+          return;
+        }
         setAccessToken(response.accessToken);
         setUser(response.user);
         setStatus("authenticated");
       } catch {
-        if (!cancelled) {
+        if (stillCurrent()) {
           setStatus("anonymous");
         }
       }

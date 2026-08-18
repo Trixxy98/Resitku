@@ -130,6 +130,7 @@ model Receipt {
   /// Raw Textract response, kept for debugging extraction quality.
   rawResult    Json?     @map("raw_result")
   errorMessage String?   @map("error_message")
+  processingStartedAt DateTime? @map("processing_started_at")
   processedAt  DateTime? @map("processed_at")
 
   transactionId String? @unique @map("transaction_id") @db.Uuid

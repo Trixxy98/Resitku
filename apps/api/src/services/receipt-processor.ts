@@ -10,6 +10,8 @@ import { createOcrProvider } from "./ocr/index.js";
 
 const ocrProvider = createOcrProvider();
 
+const STALE_PROCESSING_MS = 5 * 60 * 1000;
+
 /// Memproses satu resit yang dirujuk oleh mesej baris gilir. Direka untuk
 /// dipanggil sekali bagi setiap mesej yang diterima oleh worker.ts, tetapi
 /// diasingkan ke fail ini supaya boleh diuji secara terus tanpa gelung SQS.
@@ -39,9 +41,26 @@ export async function processReceiptMessage(receiptId: string): Promise<void> {
   // meneruskan pemprosesan fail yang sama dua kali. WHERE Postgres pada
   // UPDATE dinilai semula pada baris terkini semasa mengambil kunci baris,
   // jadi hanya satu panggilan serentak akan mendapat count === 1.
+  const staleCutoff = new Date(Date.now() - STALE_PROCESSING_MS);
   const claim = await prisma.receipt.updateMany({
-    where: { id: receiptId, status: "PENDING" },
-    data: { status: "PROCESSING" },
+    where: {
+      id: receiptId,
+      OR: [
+        { status: "PENDING" },
+        {
+          status: "PROCESSING",
+          processingStartedAt: { lte: staleCutoff },
+        },
+        {
+          status: "PROCESSING",
+          processingStartedAt: null,
+        },
+      ],
+    },
+    data: {
+      status: "PROCESSING",
+      processingStartedAt: new Date(),
+    },
   });
 
   if (claim.count === 0) {

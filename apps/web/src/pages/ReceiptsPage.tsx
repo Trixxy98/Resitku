@@ -157,6 +157,8 @@ function statusLabel(status: ReceiptItem["status"]): string {
       return "Sedia disahkan";
     case "FAILED":
       return "Gagal dibaca";
+    default:
+      return "Tidak diketahui";
   }
 }
 
