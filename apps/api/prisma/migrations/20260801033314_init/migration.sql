@@ -144,6 +144,3 @@ ALTER TABLE "receipts" ADD CONSTRAINT "receipts_user_id_fkey" FOREIGN KEY ("user
 
 -- AddForeignKey
 ALTER TABLE "receipts" ADD CONSTRAINT "receipts_transaction_id_fkey" FOREIGN KEY ("transaction_id") REFERENCES "transactions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AlterTable
-ALTER TABLE "receipts" ADD COLUMN "processing_started_at" TIMESTAMP(3);
