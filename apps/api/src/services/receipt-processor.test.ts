@@ -105,6 +105,33 @@ describe("processReceiptMessage", () => {
     expect(updated.parsedVendor).toBe("Sedia Ada");
   });
 
+  it("reclaims a PROCESSING receipt whose start timestamp is stale", async () => {
+    const receipt = await seedReceipt({ status: "PROCESSING" });
+    await prisma.receipt.update({
+      where: { id: receipt.id },
+      data: { processingStartedAt: new Date(Date.now() - 6 * 60 * 1000) },
+    });
+
+    await processReceiptMessage(receipt.id);
+
+    const updated = await prisma.receipt.findUniqueOrThrow({ where: { id: receipt.id } });
+    expect(updated.status).toBe("PARSED");
+  });
+
+  it("does not reclaim a PROCESSING receipt that started recently", async () => {
+    const receipt = await seedReceipt({ status: "PROCESSING" });
+    await prisma.receipt.update({
+      where: { id: receipt.id },
+      data: { processingStartedAt: new Date() },
+    });
+
+    await processReceiptMessage(receipt.id);
+
+    const updated = await prisma.receipt.findUniqueOrThrow({ where: { id: receipt.id } });
+    expect(updated.status).toBe("PROCESSING");
+    expect(updated.processedAt).toBeNull();
+  });
+
   it("does nothing for a receipt id that no longer exists", async () => {
     await expect(processReceiptMessage(randomUUID())).resolves.toBeUndefined();
   });

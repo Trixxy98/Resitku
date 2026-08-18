@@ -78,40 +78,35 @@ async function refreshAccessToken(): Promise<string | null> {
   return pendingRefresh;
 }
 
-async function send(path: string, options: RequestOptions): Promise<Response> {
+function authHeaders(skipAuth: boolean | undefined): Record<string, string> {
   const headers: Record<string, string> = {};
   const token = getAccessToken();
 
-  if (options.body !== undefined) {
-    headers["content-type"] = "application/json";
-  }
-
-  if (!options.skipAuth && token !== null) {
+  if (!skipAuth && token !== null) {
     headers["authorization"] = `Bearer ${token}`;
   }
 
-  return fetch(`${API_BASE}${path}`, {
-    method: options.method ?? "GET",
-    headers,
-    credentials: "include",
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  return headers;
 }
 
-export async function apiRequest<T = undefined>(
-  path: string,
-  options: RequestOptions = {},
-): Promise<T> {
-  let response = await send(path, options);
+async function withRefresh(
+  doFetch: () => Promise<Response>,
+  skipAuth: boolean | undefined,
+): Promise<Response> {
+  let response = await doFetch();
 
-  if (response.status === 401 && options.skipAuth !== true) {
+  if (response.status === 401 && skipAuth !== true) {
     const refreshedToken = await refreshAccessToken();
 
     if (refreshedToken !== null) {
-      response = await send(path, options);
+      response = await doFetch();
     }
   }
 
+  return response;
+}
+
+async function readBody<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as ApiErrorBody | null;
 
@@ -128,4 +123,47 @@ export async function apiRequest<T = undefined>(
   }
 
   return (await response.json()) as T;
+}
+
+export async function apiRequest<T = undefined>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const response = await withRefresh(() => {
+    const headers = authHeaders(options.skipAuth);
+
+    if (options.body !== undefined) {
+      headers["content-type"] = "application/json";
+    }
+
+    return fetch(`${API_BASE}${path}`, {
+      method: options.method ?? "GET",
+      headers,
+      credentials: "include",
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+  }, options.skipAuth);
+
+  return readBody<T>(response);
+}
+
+/// Multipart upload. Jangan tetapkan Content-Type sendiri — pelayar mesti
+/// menulis boundary. apiRequest tidak boleh digunakan di sini kerana ia
+/// JSON.stringify badan permintaan.
+export async function apiUpload<T>(path: string, file: File): Promise<T> {
+  const body = new FormData();
+  body.append("file", file);
+
+  const response = await withRefresh(
+    () =>
+      fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: authHeaders(false),
+        credentials: "include",
+        body,
+      }),
+    false,
+  );
+
+  return readBody<T>(response);
 }

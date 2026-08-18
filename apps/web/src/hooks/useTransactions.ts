@@ -1,22 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../context/AuthContext";
 import { apiRequest } from "../lib/apiClient";
-
-export interface TransactionItem {
-  id: string;
-  direction: "INCOME" | "EXPENSE";
-  amountMinor: number;
-  currency: string;
-  description: string | null;
-  occurredOn: string;
-  status: "DRAFT" | "CONFIRMED";
-  category: { id: string; name: string; type: "INCOME" | "EXPENSE" };
-}
+import { toLocalIsoDate } from "../lib/dates";
+import type { TransactionItem } from "../lib/types";
 
 interface TransactionPage {
   items: TransactionItem[];
   nextCursor: string | null;
+}
+
+interface TransactionResponse {
+  transaction: TransactionItem;
 }
 
 export function useTransactionsQuery() {
@@ -40,20 +35,6 @@ interface SummaryResponse {
   totals: { incomeMinor: number; expenseMinor: number; netMinor: number };
 }
 
-// new Date(y, m, d) mencipta tarikh pada tengah malam TEMPATAN, tetapi
-// .toISOString() menukarnya kepada UTC dahulu sebelum format — bagi pengguna
-// di timur UTC (Malaysia, UTC+8), tengah malam tempatan 1 Ogos menjadi 31
-// Julai 16:00 UTC, jadi .toISOString().slice(0, 10) yang lama akan pulangkan
-// "31" bukan "01". Fungsi ini terus membaca komponen tempatan (getFullYear/
-// getMonth/getDate) tanpa sebarang penukaran UTC.
-function toLocalIsoDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
 function currentMonthRange(): { from: string; to: string } {
   const now = new Date();
 
@@ -71,5 +52,17 @@ export function useSummaryQuery() {
     queryKey: ["transactions", "summary", user?.id, from, to],
     queryFn: () => apiRequest<SummaryResponse>(`/api/transactions/summary?from=${from}&to=${to}`),
     enabled: user !== null,
+  });
+}
+
+export function useCreateTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: unknown) =>
+      apiRequest<TransactionResponse>("/api/transactions", { method: "POST", body }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["transactions"] });
+    },
   });
 }

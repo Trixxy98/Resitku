@@ -6,6 +6,8 @@ import { AuthProvider } from "./context/AuthContext";
 import { queryClient } from "./lib/queryClient";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
+import { NewTransactionPage } from "./pages/NewTransactionPage";
+import { ReceiptsPage } from "./pages/ReceiptsPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 
@@ -18,14 +20,11 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route element={<ProtectedRoute />}>
-              <Route
-                path="/"
-                element={
-                  <AppShell>
-                    <DashboardPage />
-                  </AppShell>
-                }
-              />
+              <Route element={<AppShell />}>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/transactions/new" element={<NewTransactionPage />} />
+                <Route path="/receipts" element={<ReceiptsPage />} />
+              </Route>
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
