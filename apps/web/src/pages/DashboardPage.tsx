@@ -1,7 +1,9 @@
 import { formatAmount } from "@resitku/shared";
+import { Link } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { useSummaryQuery, useTransactionsQuery } from "../hooks/useTransactions";
+import { primaryButtonClass, secondaryButtonClass } from "../lib/formStyles";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -10,7 +12,17 @@ export function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-xl font-semibold text-slate-900">Selamat kembali, {user?.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-slate-900">Selamat kembali, {user?.name}</h1>
+        <div className="flex gap-2">
+          <Link to="/transactions/new" className={`${primaryButtonClass} inline-flex items-center`}>
+            Tambah transaksi
+          </Link>
+          <Link to="/receipts" className={`${secondaryButtonClass} inline-flex items-center`}>
+            Muat naik resit
+          </Link>
+        </div>
+      </div>
 
       <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <SummaryCard
@@ -41,7 +53,13 @@ export function DashboardPage() {
             <p className="p-4 text-sm text-red-600">Gagal memuatkan transaksi.</p>
           )}
           {transactions.data?.items.length === 0 && (
-            <p className="p-4 text-sm text-slate-500">Belum ada transaksi lagi.</p>
+            <p className="p-4 text-sm text-slate-500">
+              Belum ada transaksi lagi.{" "}
+              <Link to="/transactions/new" className="underline">
+                Tambah yang pertama
+              </Link>
+              .
+            </p>
           )}
           {transactions.data?.items.map((item) => (
             <div key={item.id} className="flex items-center justify-between px-4 py-3">

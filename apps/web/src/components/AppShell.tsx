@@ -1,9 +1,8 @@
-import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -15,10 +14,41 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <span className="text-lg font-semibold text-slate-900">Resitku</span>
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex items-center gap-4">
+            <NavLink to="/" className="text-lg font-semibold text-slate-900">
+              Resitku
+            </NavLink>
+            <nav className="flex gap-3 text-sm">
+              <NavLink
+                to="/"
+                end
+                className={({ isActive }) =>
+                  isActive ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-800"
+                }
+              >
+                Dashboard
+              </NavLink>
+              <NavLink
+                to="/transactions/new"
+                className={({ isActive }) =>
+                  isActive ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-800"
+                }
+              >
+                Transaksi
+              </NavLink>
+              <NavLink
+                to="/receipts"
+                className={({ isActive }) =>
+                  isActive ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-800"
+                }
+              >
+                Resit
+              </NavLink>
+            </nav>
+          </div>
           <div className="flex items-center gap-3 text-sm text-slate-600">
-            <span>{user?.email}</span>
+            <span className="hidden sm:inline">{user?.email}</span>
             <button
               type="button"
               onClick={() => void handleLogout()}
@@ -29,7 +59,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main>{children}</main>
+      <main>
+        <Outlet />
+      </main>
     </div>
   );
 }
