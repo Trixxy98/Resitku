@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/AuthContext";
 import { ApiError } from "../lib/apiClient";
+import { errorClass, fieldClass, labelClass, mutedClass, primaryButtonClass } from "../lib/formStyles";
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -31,17 +32,18 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold text-slate-900">Log masuk ke Resitku</h1>
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+        <p className="font-display text-3xl text-amber">Resitku</p>
+        <h1 className="mt-2 text-xl font-semibold text-paper">Snap resit. Jejak belanja.</h1>
 
         <form
           onSubmit={(event) => void handleSubmit(onSubmit)(event)}
-          className="mt-6 space-y-4"
+          className="mt-8 space-y-4 rounded-2xl border border-line bg-ink-2 p-6"
           noValidate
         >
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="email" className={labelClass}>
               Emel
             </label>
             <input
@@ -49,13 +51,13 @@ export function LoginPage() {
               type="email"
               autoComplete="email"
               {...register("email")}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              className={fieldClass}
             />
-            {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>}
+            {errors.email && <p className={`mt-1 ${errorClass}`}>{errors.email.message}</p>}
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+            <label htmlFor="password" className={labelClass}>
               Kata laluan
             </label>
             <input
@@ -63,27 +65,21 @@ export function LoginPage() {
               type="password"
               autoComplete="current-password"
               {...register("password")}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-500 focus:outline-none"
+              className={fieldClass}
             />
-            {errors.password && (
-              <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-            )}
+            {errors.password && <p className={`mt-1 ${errorClass}`}>{errors.password.message}</p>}
           </div>
 
-          {serverError !== null && <p className="text-sm text-red-600">{serverError}</p>}
+          {serverError !== null && <p className={errorClass}>{serverError}</p>}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-lg bg-slate-900 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-          >
+          <button type="submit" disabled={isSubmitting} className={`w-full ${primaryButtonClass}`}>
             {isSubmitting ? "Log masuk…" : "Log masuk"}
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-slate-500">
+        <p className={`mt-4 text-center ${mutedClass}`}>
           Belum ada akaun?{" "}
-          <Link to="/register" className="font-medium text-slate-900 underline">
+          <Link to="/register" className="font-medium text-amber hover:underline">
             Daftar
           </Link>
         </p>

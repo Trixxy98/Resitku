@@ -1,19 +1,21 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  MAX_RECEIPT_BYTES,
-  formatAmount,
-  isoDateSchema,
-  isReceiptContentType,
-  toDecimalString,
-} from "@resitku/shared";
-import { useState, type FormEvent } from "react";
+import { formatAmount, isoDateSchema, toDecimalString } from "@resitku/shared";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { ReceiptUploadForm } from "../components/ReceiptUploadForm";
 import { useCategoriesQuery } from "../hooks/useCategories";
-import { useConfirmReceipt, useReceiptsQuery, useUploadReceipt } from "../hooks/useReceipts";
+import { useConfirmReceipt, useReceiptsQuery } from "../hooks/useReceipts";
 import { ApiError } from "../lib/apiClient";
-import { fieldClass, primaryButtonClass } from "../lib/formStyles";
+import {
+  cardClass,
+  errorClass,
+  fieldClass,
+  labelClass,
+  mutedClass,
+  pageClass,
+  primaryButtonClass,
+} from "../lib/formStyles";
 import type { CategoryItem, ReceiptItem } from "../lib/types";
 
 export function ReceiptsPage() {
@@ -21,86 +23,27 @@ export function ReceiptsPage() {
   const categories = useCategoriesQuery();
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-xl font-semibold text-slate-900">Resit</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Muat naik gambar resit. Sistem membaca jumlah dan tarikh, kemudian anda sahkan jadi
-        transaksi.
+    <div className={pageClass}>
+      <h1 className="font-display text-3xl tracking-tight text-paper">Resit</h1>
+      <p className={`mt-1 ${mutedClass}`}>
+        Muat naik, tunggu bacaan, kemudian sahkan jadi transaksi.
       </p>
 
-      <ReceiptUploadForm />
+      <div className={`${cardClass} mt-6 p-5 sm:p-6`}>
+        <ReceiptUploadForm />
+      </div>
 
       <section className="mt-8 space-y-3">
-        {receipts.isLoading && <p className="text-sm text-slate-500">Memuatkan…</p>}
-        {receipts.isError && <p className="text-sm text-red-600">Gagal memuatkan resit.</p>}
+        {receipts.isLoading && <p className={mutedClass}>Memuatkan…</p>}
+        {receipts.isError && <p className={errorClass}>Gagal memuatkan resit.</p>}
         {receipts.data?.length === 0 && (
-          <p className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
-            Belum ada resit.
-          </p>
+          <p className={`${cardClass} p-4 ${mutedClass}`}>Belum ada resit.</p>
         )}
         {receipts.data?.map((receipt) => (
           <ReceiptCard key={receipt.id} receipt={receipt} categories={categories.data ?? []} />
         ))}
       </section>
     </div>
-  );
-}
-
-function ReceiptUploadForm() {
-  const upload = useUploadReceipt();
-  const [clientError, setClientError] = useState<string | null>(null);
-
-  async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    setClientError(null);
-
-    const form = event.currentTarget;
-    const input = form.elements.namedItem("file");
-    const file = input instanceof HTMLInputElement ? input.files?.[0] : undefined;
-
-    if (file === undefined) {
-      setClientError("Pilih fail gambar dahulu.");
-      return;
-    }
-
-    if (!isReceiptContentType(file.type)) {
-      setClientError("Hanya JPEG, PNG atau WebP.");
-      return;
-    }
-
-    if (file.size > MAX_RECEIPT_BYTES) {
-      setClientError("Fail melebihi 5 MB.");
-      return;
-    }
-
-    try {
-      await upload.mutateAsync(file);
-      form.reset();
-    } catch (error) {
-      setClientError(error instanceof ApiError ? error.message : "Gagal memuat naik resit.");
-    }
-  }
-
-  return (
-    <form
-      onSubmit={(event) => void onSubmit(event)}
-      className="mt-6 space-y-3 rounded-xl border border-slate-200 bg-white p-6"
-    >
-      <label htmlFor="file" className="block text-sm font-medium text-slate-700">
-        Gambar resit
-      </label>
-      <input
-        id="file"
-        name="file"
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
-      />
-      {clientError !== null && <p className="text-sm text-red-600">{clientError}</p>}
-      <button type="submit" disabled={upload.isPending} className={primaryButtonClass}>
-        {upload.isPending ? "Memuat naik…" : "Muat naik"}
-      </button>
-    </form>
   );
 }
 
@@ -112,31 +55,31 @@ function ReceiptCard({
   categories: CategoryItem[];
 }) {
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-4">
+    <article className={`${cardClass} p-4`}>
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-slate-900">{receipt.parsedVendor ?? "Resit"}</p>
-          <p className="text-xs text-slate-500">
+          <p className="text-sm font-medium text-paper">{receipt.parsedVendor ?? "Resit"}</p>
+          <p className="text-xs text-mute">
             {new Date(receipt.createdAt).toLocaleString("ms-MY")} · {statusLabel(receipt.status)}
           </p>
         </div>
         {receipt.parsedAmountMinor !== null && (
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="font-display text-lg text-paper">
             {formatAmount(receipt.parsedAmountMinor, receipt.parsedCurrency ?? "MYR")}
           </p>
         )}
       </div>
 
       {receipt.status === "PENDING" || receipt.status === "PROCESSING" ? (
-        <p className="mt-3 text-sm text-slate-500">Sedang dibaca… biarkan tab ini terbuka.</p>
+        <p className={`mt-3 ${mutedClass}`}>Sedang dibaca… biarkan tab ini terbuka.</p>
       ) : null}
 
       {receipt.status === "FAILED" && receipt.errorMessage !== null ? (
-        <p className="mt-3 text-sm text-red-600">{receipt.errorMessage}</p>
+        <p className={`mt-3 ${errorClass}`}>{receipt.errorMessage}</p>
       ) : null}
 
       {receipt.transactionId !== null ? (
-        <p className="mt-3 text-sm text-emerald-700">Sudah disahkan sebagai transaksi.</p>
+        <p className="mt-3 text-sm text-mint">Sudah disahkan sebagai transaksi.</p>
       ) : null}
 
       {(receipt.status === "PARSED" || receipt.status === "FAILED") &&
@@ -245,13 +188,13 @@ function ReceiptConfirmForm({
   return (
     <form
       onSubmit={(event) => void handleSubmit(onSubmit)(event)}
-      className="mt-4 space-y-3 border-t border-slate-100 pt-4"
+      className="mt-4 space-y-3 border-t border-line pt-4"
       noValidate
     >
       <div>
         <label
           htmlFor={`category-${receipt.id}`}
-          className="block text-sm font-medium text-slate-700"
+          className={labelClass}
         >
           Kategori
         </label>
@@ -273,7 +216,7 @@ function ReceiptConfirmForm({
           </optgroup>
         </select>
         {errors.categoryId && (
-          <p className="mt-1 text-sm text-red-600">{errors.categoryId.message}</p>
+          <p className={`mt-1 ${errorClass}`}>{errors.categoryId.message}</p>
         )}
       </div>
 
@@ -281,7 +224,7 @@ function ReceiptConfirmForm({
         <div>
           <label
             htmlFor={`amount-${receipt.id}`}
-            className="block text-sm font-medium text-slate-700"
+            className={labelClass}
           >
             Jumlah (RM)
           </label>
@@ -292,12 +235,12 @@ function ReceiptConfirmForm({
             {...register("amount")}
             className={fieldClass}
           />
-          {errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>}
+          {errors.amount && <p className={`mt-1 ${errorClass}`}>{errors.amount.message}</p>}
         </div>
         <div>
           <label
             htmlFor={`date-${receipt.id}`}
-            className="block text-sm font-medium text-slate-700"
+            className={labelClass}
           >
             Tarikh
           </label>
@@ -308,13 +251,13 @@ function ReceiptConfirmForm({
             className={fieldClass}
           />
           {errors.occurredOn && (
-            <p className="mt-1 text-sm text-red-600">{errors.occurredOn.message}</p>
+            <p className={`mt-1 ${errorClass}`}>{errors.occurredOn.message}</p>
           )}
         </div>
       </div>
 
       <div>
-        <label htmlFor={`desc-${receipt.id}`} className="block text-sm font-medium text-slate-700">
+        <label htmlFor={`desc-${receipt.id}`} className={labelClass}>
           Keterangan
         </label>
         <input
@@ -324,11 +267,11 @@ function ReceiptConfirmForm({
           className={fieldClass}
         />
         {errors.description && (
-          <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+          <p className={`mt-1 ${errorClass}`}>{errors.description.message}</p>
         )}
       </div>
 
-      {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
+      {errors.root && <p className={errorClass}>{errors.root.message}</p>}
 
       <button type="submit" disabled={isSubmitting} className={primaryButtonClass}>
         {isSubmitting ? "Mengesahkan…" : "Sahkan jadi transaksi"}
