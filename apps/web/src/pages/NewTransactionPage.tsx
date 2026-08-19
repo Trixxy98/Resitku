@@ -8,7 +8,16 @@ import { useCategoriesQuery } from "../hooks/useCategories";
 import { useCreateTransaction } from "../hooks/useTransactions";
 import { ApiError } from "../lib/apiClient";
 import { todayLocalIsoDate } from "../lib/dates";
-import { fieldClass, primaryButtonClass, secondaryButtonClass } from "../lib/formStyles";
+import {
+  cardClass,
+  errorClass,
+  fieldClass,
+  labelClass,
+  mutedClass,
+  pageClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from "../lib/formStyles";
 
 /// Skema borang, bukan createTransactionSchema. Skema API menukar jumlah
 /// kepada unit sen; kalau resolver buat kerja itu, handleSubmit hantar 1250
@@ -66,23 +75,23 @@ export function NewTransactionPage() {
   const expense = (categories.data ?? []).filter((category) => category.type === "EXPENSE");
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
-      <h1 className="text-xl font-semibold text-slate-900">Tambah transaksi</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        Rekod pendapatan atau perbelanjaan secara manual. Untuk resit, guna{" "}
-        <Link to="/receipts" className="underline">
-          muat naik resit
+    <div className={pageClass}>
+      <h1 className="font-display text-3xl tracking-tight text-paper">Tambah transaksi</h1>
+      <p className={`mt-1 ${mutedClass}`}>
+        Isi manual bila tiada resit. Lebih pantas:{" "}
+        <Link to="/receipts" className="text-amber underline">
+          snap resit
         </Link>
         .
       </p>
 
       <form
         onSubmit={(event) => void handleSubmit(onSubmit)(event)}
-        className="mt-6 max-w-md space-y-4 rounded-xl border border-slate-200 bg-white p-6"
+        className={`${cardClass} mt-6 max-w-md space-y-4 p-6`}
         noValidate
       >
         <div>
-          <label htmlFor="categoryId" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="categoryId" className={labelClass}>
             Kategori
           </label>
           <select id="categoryId" {...register("categoryId")} className={fieldClass}>
@@ -103,12 +112,12 @@ export function NewTransactionPage() {
             </optgroup>
           </select>
           {errors.categoryId && (
-            <p className="mt-1 text-sm text-red-600">{errors.categoryId.message}</p>
+            <p className={`mt-1 ${errorClass}`}>{errors.categoryId.message}</p>
           )}
         </div>
 
         <div>
-          <label htmlFor="amount" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="amount" className={labelClass}>
             Jumlah (RM)
           </label>
           <input
@@ -119,30 +128,30 @@ export function NewTransactionPage() {
             {...register("amount")}
             className={fieldClass}
           />
-          {errors.amount && <p className="mt-1 text-sm text-red-600">{errors.amount.message}</p>}
+          {errors.amount && <p className={`mt-1 ${errorClass}`}>{errors.amount.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="occurredOn" className="block text-sm font-medium text-slate-700">
+          <label htmlFor="occurredOn" className={labelClass}>
             Tarikh
           </label>
           <input id="occurredOn" type="date" {...register("occurredOn")} className={fieldClass} />
           {errors.occurredOn && (
-            <p className="mt-1 text-sm text-red-600">{errors.occurredOn.message}</p>
+            <p className={`mt-1 ${errorClass}`}>{errors.occurredOn.message}</p>
           )}
         </div>
 
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-slate-700">
-            Keterangan <span className="font-normal text-slate-400">(pilihan)</span>
+          <label htmlFor="description" className={labelClass}>
+            Keterangan <span className="font-normal text-mute">(pilihan)</span>
           </label>
           <input id="description" type="text" {...register("description")} className={fieldClass} />
           {errors.description && (
-            <p className="mt-1 text-sm text-red-600">{errors.description.message}</p>
+            <p className={`mt-1 ${errorClass}`}>{errors.description.message}</p>
           )}
         </div>
 
-        {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
+        {errors.root && <p className={errorClass}>{errors.root.message}</p>}
 
         <div className="flex gap-3">
           <button type="submit" disabled={isSubmitting} className={primaryButtonClass}>

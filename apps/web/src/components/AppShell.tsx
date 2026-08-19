@@ -12,47 +12,47 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="min-h-screen text-paper">
+      <header className="border-b border-line bg-ink-2/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-4">
-            <NavLink to="/" className="text-lg font-semibold text-slate-900">
+          <div className="flex items-center gap-5">
+            <NavLink to="/" className="font-display text-xl tracking-tight text-amber">
               Resitku
             </NavLink>
-            <nav className="flex gap-3 text-sm">
+            <nav className="flex gap-4 text-sm">
               <NavLink
                 to="/"
                 end
                 className={({ isActive }) =>
-                  isActive ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-800"
+                  isActive ? "font-medium text-paper" : "text-mute hover:text-paper"
                 }
               >
                 Dashboard
               </NavLink>
               <NavLink
-                to="/transactions/new"
-                className={({ isActive }) =>
-                  isActive ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-800"
-                }
-              >
-                Transaksi
-              </NavLink>
-              <NavLink
                 to="/receipts"
                 className={({ isActive }) =>
-                  isActive ? "font-medium text-slate-900" : "text-slate-500 hover:text-slate-800"
+                  isActive ? "font-medium text-paper" : "text-mute hover:text-paper"
                 }
               >
                 Resit
               </NavLink>
+              <NavLink
+                to="/transactions/new"
+                className={({ isActive }) =>
+                  isActive ? "font-medium text-paper" : "text-mute hover:text-paper"
+                }
+              >
+                Manual
+              </NavLink>
             </nav>
           </div>
-          <div className="flex items-center gap-3 text-sm text-slate-600">
+          <div className="flex items-center gap-3 text-sm text-mute">
             <span className="hidden sm:inline">{user?.email}</span>
             <button
               type="button"
               onClick={() => void handleLogout()}
-              className="rounded-lg border border-slate-300 px-3 py-1 hover:bg-slate-100"
+              className="rounded-xl border border-line px-3 py-1.5 text-paper hover:bg-ink-3"
             >
               Log keluar
             </button>
