@@ -4,6 +4,9 @@ Personal expense tracker with receipt OCR. Snap a photo, confirm the parsed amou
 
 Built as a small, interview-defendable AWS portfolio: one Docker image, an Application Load Balancer, ECS Fargate (API + worker), private RDS Postgres, S3, SQS, and Textract.
 
+<img width="771" height="985" alt="image" src="https://github.com/user-attachments/assets/66722e67-f0cc-43c2-a448-e8639a048ae4" />
+
+
 ## What it does
 
 - Register / log in (access JWT in memory, refresh token in an HttpOnly cookie)
